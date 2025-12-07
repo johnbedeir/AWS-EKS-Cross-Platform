@@ -1,0 +1,119 @@
+# Terraform Variables Configuration Example
+# Copy this file to terraform.tfvars and fill in your actual values
+# cp terraform.tfvars.example terraform.tfvars
+
+####################################################################################################
+### AWS Account & Region Configuration
+####################################################################################################
+
+# TODO: Replace with your AWS Account ID
+aws_account_id = "YOUR_AWS_ACCOUNT_ID"
+region         = "us-east-1"      # AWS region (e.g., us-east-1, eu-central-1)
+replicated_region = "us-west-2"  # Region for replication (can be same as region)
+
+# TODO: Replace with your availability zones (must match your selected region)
+az_primary   = "us-east-1a"  # Primary availability zone
+az_secondary = "us-east-1b" # Secondary availability zone
+
+default_internal_domain = "ec2.internal"  # AWS internal domain
+
+####################################################################################################
+### VPC & Networking Configuration
+####################################################################################################
+
+vpc_cidr = "10.0.0.0/16"  # VPC CIDR block
+
+# EKS Production Subnets (2 subnets for high availability)
+private_eks_prod_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
+
+# EKS GitOps Subnets (2 subnets for high availability)
+private_eks_gitops_subnets = ["10.0.10.0/24", "10.0.11.0/24"]
+
+# Public Subnets (for NAT Gateway and Internet Gateway)
+public_subnets = ["10.0.101.0/24", "10.0.102.0/24"]
+
+####################################################################################################
+### Budget Tags
+####################################################################################################
+
+networking_budget = "networking" # Budget tag for networking resources
+proc_budget       = "processing" # Budget tag for processing resources
+env_tag           = "prod"       # Environment tag (prod, dev, staging)
+name_region       = "us-east-1"  # Region name for resource naming (e.g., us-east-1, eu-00)
+
+####################################################################################################
+### EKS Production Cluster Configuration
+####################################################################################################
+
+name_prefix  = "eks-prod"        # Prefix for EKS production cluster
+environment  = "production"       # Environment name
+cluster_name = "eks-prod-cluster" # Full cluster name
+
+eks_version = "1.28"  # Kubernetes version (e.g., 1.28, 1.29)
+
+# OIDC Configuration
+# TODO: Get these values after creating the cluster, or use placeholder values
+# You can find these after the first terraform apply, or use the example values below
+eks_oidc_id       = "EXAMPLED539D4633E53F1B6D6814"  # OIDC provider ID (will be created by EKS)
+eks_oidc_thumbprint = "9e99a48a9960b14926bb7f3b02e22da2b0ab7280"  # OIDC thumbprint
+
+# Node Group Configuration
+node_group_new_instance_types = ["t3.medium"]  # Instance types (e.g., ["t3.medium", "t3.large"])
+node_group_new_desired_size   = 2              # Desired number of nodes
+node_group_new_min_size       = 1              # Minimum number of nodes
+node_group_new_max_size       = 5              # Maximum number of nodes
+
+# Kubernetes Access
+# TODO: Replace with your IAM usernames
+# Format: Just the username, NOT the full ARN (e.g., ["development"])
+# The ARN will be constructed automatically by Terraform: arn:aws:iam::ACCOUNT_ID:user/USERNAME
+admin_users = [
+  "YOUR_ADMIN_USERNAME"
+]
+
+# TODO: Replace with your developer IAM user ARNs (full ARN format required)
+developer_users = [
+  "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:user/YOUR_DEVELOPER_USERNAME"
+]
+
+# Datadog Configuration
+# TODO: Replace with your Datadog API key name and value
+datadog_api_name      = "datadog-api-key"  # Name of the Datadog API key in AWS Secrets Manager
+datadog_api_key_value = "YOUR_DATADOG_API_KEY_HERE" # TODO: Add your actual Datadog API key (will be stored in Secrets Manager)
+
+####################################################################################################
+### EKS GitOps Cluster Configuration
+####################################################################################################
+
+gitops_name_prefix  = "eks-gitops"        # Prefix for GitOps cluster
+gitops_environment  = "production"        # Environment name
+gitops_cluster_name = "eks-gitops-cluster" # Full GitOps cluster name
+
+gitops_eks_version = "1.28"  # Kubernetes version for GitOps cluster
+
+# GitOps Node Group Configuration
+# Sized for ArgoCD + Chartmuseum + supporting services (Metrics Server, Autoscaler, Datadog, Load Balancer Controller)
+# t3.large: 2 vCPU, 8GB RAM - sufficient for GitOps workloads
+gitops_node_group_instance_types = ["t3.large"]  # Instance types for GitOps cluster (increased for ArgoCD + Chartmuseum)
+gitops_node_group_desired_size   = 2              # Desired number of nodes (2 for HA)
+gitops_node_group_min_size       = 2              # Minimum number of nodes (2 for HA)
+gitops_node_group_max_size       = 4              # Maximum number of nodes (increased for scaling)
+
+# GitOps Kubernetes Access
+# TODO: Replace with your IAM usernames
+# Format: Just the username, NOT the full ARN (e.g., ["development"])
+# The ARN will be constructed automatically by Terraform: arn:aws:iam::ACCOUNT_ID:user/USERNAME
+gitops_admin_users = [
+  "YOUR_ADMIN_USERNAME"
+]
+
+# TODO: Replace with your developer IAM user ARNs (full ARN format required)
+gitops_developer_users = [
+  "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:user/YOUR_DEVELOPER_USERNAME"
+]
+
+# GitOps Datadog Configuration
+# TODO: Replace with your Datadog API key name and value
+gitops_datadog_api_name      = "datadog-api-key-gitops"  # Name of the Datadog API key for GitOps cluster
+gitops_datadog_api_key_value = "YOUR_DATADOG_API_KEY_HERE" # TODO: Add your actual Datadog API key for GitOps (will be stored in Secrets Manager)
+
