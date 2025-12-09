@@ -133,12 +133,15 @@ resource "helm_release" "argocd" {
 # ArgoCD will use the IAM role attached to argocd-application-controller service account
 # to authenticate with the production cluster via AWS IAM
 resource "kubernetes_secret" "argocd_prod_cluster" {
-  count = var.enable_argocd && var.target_cluster_name != "" && var.target_cluster_endpoint != "" ? 1 : 0
+  # Use for_each with a static key to avoid "unknown at plan time" errors
+  # The key is static, so Terraform can determine the map structure even when values are unknown
+  # The condition in the value will be evaluated at apply time
+  for_each = var.enable_argocd ? { "prod-cluster" = true } : {}
 
   provider = kubernetes.gitops
 
   metadata {
-    name      = "${replace(var.target_cluster_name, "-", "")}-cluster"
+    name      = "${replace(var.target_cluster_name != "" ? var.target_cluster_name : "prod-cluster", "-", "")}-cluster"
     namespace = "argocd"
     labels = {
       "argocd.argoproj.io/secret-type" = "cluster"
@@ -149,10 +152,10 @@ resource "kubernetes_secret" "argocd_prod_cluster" {
 
   data = {
     # Cluster name (friendly name shown in ArgoCD UI)
-    name = base64encode(var.target_cluster_name)
+    name = base64encode(var.target_cluster_name != "" ? var.target_cluster_name : "prod-cluster")
 
     # Production cluster endpoint
-    server = base64encode(var.target_cluster_endpoint)
+    server = base64encode(var.target_cluster_endpoint != "" ? var.target_cluster_endpoint : "")
 
     # Cluster configuration - ArgoCD v2+ format
     # ArgoCD will use AWS IAM authentication via the service account IAM role
@@ -160,12 +163,12 @@ resource "kubernetes_secret" "argocd_prod_cluster" {
       # AWS IAM authentication - ArgoCD will use the IAM role from the service account
       # The role is attached to argocd-application-controller service account
       awsAuthConfig = {
-        clusterName = var.target_cluster_name
+        clusterName = var.target_cluster_name != "" ? var.target_cluster_name : "prod-cluster"
       }
       # TLS configuration
       tlsClientConfig = {
         # CA certificate for the production cluster (base64 encoded)
-        caData = var.target_cluster_ca_data
+        caData = var.target_cluster_ca_data != "" ? var.target_cluster_ca_data : ""
         # Insecure skip TLS verify (set to false for production)
         insecure = false
       }
