@@ -79,6 +79,8 @@ resource "aws_iam_role_policy_attachment" "eks_nodes_cluster_autoscaler" {
 # This data source is not needed - we reference the resource directly
 
 # IAM role for ArgoCD GitOps access from external clusters
+# NOTE: This role references the GitOps cluster's IAM role which must be created first.
+# If applying both modules in the same run, apply the GitOps module first, then the prod module.
 resource "aws_iam_role" "argocd_gitops_access" {
   count = var.enable_argocd_access ? 1 : 0
 
@@ -91,8 +93,8 @@ resource "aws_iam_role" "argocd_gitops_access" {
         Effect = "Allow"
         Principal = {
           # The GitOps module creates the role as: ${var.cluster_name}-argocd-cross-cluster-access
-          # where var.cluster_name = "eks-gitops-production"
-          # var.gitops_cluster_name should match this format
+          # where var.cluster_name is the full cluster name passed from root module
+          # We construct the ARN directly - the role must exist before this resource is created
           AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.gitops_cluster_name}-argocd-cross-cluster-access"
         }
         Action = "sts:AssumeRole"

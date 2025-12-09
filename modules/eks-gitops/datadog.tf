@@ -13,12 +13,13 @@ resource "kubernetes_secret" "datadog_api_key" {
   provider = kubernetes.gitops
 
   metadata {
-    name      = "${local.cluster_name}-datadog-secret"
+    name      = "datadog-secret"
     namespace = "kube-system"
   }
 
   data = {
-    "api-key" = data.aws_secretsmanager_secret_version.datadog_api_key_value.secret_string
+    # Trim whitespace from API key to ensure it's properly formatted
+    "api-key" = trimspace(data.aws_secretsmanager_secret_version.datadog_api_key_value.secret_string)
   }
 
   type = "Opaque"
@@ -35,14 +36,16 @@ resource "helm_release" "datadog_agent" {
 
   provider = helm.gitops
 
-  name             = "${local.cluster_name}-datadog"
+  name             = "datadog"
   namespace        = "kube-system"
   repository       = "https://helm.datadoghq.com"
   chart            = "datadog"
   version          = "3.116.3"
   create_namespace = false
+  timeout          = 600   # Increase timeout to 10 minutes
+  wait             = false # Don't wait for all pods to be ready (they may have readiness probe issues)
 
-  # Use Kubernetes secret for API key (don't set apiKey directly when using ExistingSecret)
+  # Essential configuration
   set {
     name  = "datadog.apiKeyExistingSecret"
     value = kubernetes_secret.datadog_api_key[0].metadata[0].name
@@ -54,23 +57,8 @@ resource "helm_release" "datadog_agent" {
   }
 
   set {
-    name  = "datadog.kubeStateMetricsCore.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "datadog.kubeStateMetricsEnabled"
-    value = "true"
-  }
-
-  set {
     name  = "datadog.site"
-    value = "datadoghq.eu"
-  }
-
-  set {
-    name  = "agents.image.tag"
-    value = "7.45.0"
+    value = "datadoghq.com"
   }
 
   set {
@@ -78,135 +66,107 @@ resource "helm_release" "datadog_agent" {
     value = aws_eks_cluster.gitops_eks.name
   }
 
-  set {
-    name  = "datadog.clusterName"
-    value = aws_eks_cluster.gitops_eks.name
-  }
-
+  # Cluster agent configuration
   set {
     name  = "clusterAgent.enabled"
     value = "true"
   }
 
   set {
-    name  = "agents.useHostNetwork"
-    value = "true"
-  }
-
-  set {
-    name  = "datadog.logs.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "datadog.apm.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "datadog.processAgent.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "datadog.processAgent.processCollection"
-    value = "true"
-  }
-
-  set {
-    name  = "datadog.kubernetesKubelet.tlsVerify"
-    value = "false"
-  }
-
-  set {
-    name  = "datadog.kubernetesKubelet.hostCAPath"
-    value = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-  }
-
-  set {
-    name  = "datadog.kubernetesKubelet.tokenPath"
-    value = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-  }
-
-  # Disable remote config if not used
-  set {
-    name  = "datadog.remoteConfiguration.enabled"
-    value = "false"
-  }
-
-  # Enable EC2 tag collection
-  set {
-    name  = "datadog.nodeLabelsAsTags"
-    value = "{\"eks.amazonaws.com/nodegroup\":\"nodegroup\",\"role\":\"role\"}"
-  }
-
-  set {
-    name  = "datadog.tags"
-    value = "{\"env\":\"${aws_eks_cluster.gitops_eks.name}\"}"
-  }
-
-  set {
-    name  = "datadog.dogstatsd.tagCardinality"
-    value = "high"
-  }
-
-  set {
-    name  = "datadog.collectEc2Tags"
-    value = "true"
-  }
-
-  # Enhanced Kubernetes monitoring
-  set {
-    name  = "datadog.leaderElection"
-    value = "true"
-  }
-
-  set {
-    name  = "datadog.collectKubernetesEvents"
-    value = "true"
-  }
-
-  set {
-    name  = "clusterAgent.metricsProvider.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "clusterAgent.admissionController.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "datadog.orchestratorExplorer.enabled"
-    value = "true"
-  }
-
-  # Container monitoring
-  set {
-    name  = "datadog.containerExclude"
-    value = "image:gcr.io/datadoghq/cluster-agent"
-  }
-
-  set {
-    name  = "datadog.containerInclude"
-    value = "*"
-  }
-
-  set {
-    name  = "datadog.podLabelsAsTags"
-    value = "{\"app\":\"app\",\"release\":\"release\",\"environment\":\"environment\"}"
-  }
-
-  set {
     name  = "clusterAgent.replicas"
-    value = "2"
+    value = "1"
+  }
+
+  # Fix readiness probe - increase initial delay and adjust thresholds
+  set {
+    name  = "clusterAgent.readinessProbe.initialDelaySeconds"
+    value = "30"
   }
 
   set {
-    name  = "datadog.clusterChecks.enabled"
-    value = "true"
+    name  = "clusterAgent.readinessProbe.periodSeconds"
+    value = "10"
   }
 
+  set {
+    name  = "clusterAgent.readinessProbe.timeoutSeconds"
+    value = "5"
+  }
+
+  set {
+    name  = "clusterAgent.readinessProbe.failureThreshold"
+    value = "6"
+  }
+
+  # Resource limits
+  set {
+    name  = "clusterAgent.resources.requests.cpu"
+    value = "200m"
+  }
+
+  set {
+    name  = "clusterAgent.resources.requests.memory"
+    value = "256Mi"
+  }
+
+  set {
+    name  = "clusterAgent.resources.limits.cpu"
+    value = "500m"
+  }
+
+  set {
+    name  = "clusterAgent.resources.limits.memory"
+    value = "512Mi"
+  }
+
+  # Node agent resource limits
+  set {
+    name  = "agents.resources.requests.cpu"
+    value = "200m"
+  }
+
+  set {
+    name  = "agents.resources.requests.memory"
+    value = "256Mi"
+  }
+
+  set {
+    name  = "agents.resources.limits.cpu"
+    value = "500m"
+  }
+
+  set {
+    name  = "agents.resources.limits.memory"
+    value = "512Mi"
+  }
+
+  # Fix readiness probe for node agents - more lenient settings
+  set {
+    name  = "agents.readinessProbe.initialDelaySeconds"
+    value = "60"
+  }
+
+  set {
+    name  = "agents.readinessProbe.periodSeconds"
+    value = "10"
+  }
+
+  set {
+    name  = "agents.readinessProbe.timeoutSeconds"
+    value = "5"
+  }
+
+  set {
+    name  = "agents.readinessProbe.failureThreshold"
+    value = "10"
+  }
+
+  set {
+    name  = "agents.readinessProbe.successThreshold"
+    value = "1"
+  }
+
+  # RBAC
   set {
     name  = "rbac.create"
     value = "true"
@@ -221,6 +181,7 @@ resource "helm_release" "datadog_agent" {
     aws_eks_cluster.gitops_eks,
     aws_eks_node_group.gitops_prod,
     kubernetes_config_map.aws_auth,
-    kubernetes_secret.datadog_api_key
+    kubernetes_secret.datadog_api_key,
+    helm_release.aws_load_balancer_controller
   ]
 }

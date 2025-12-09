@@ -147,7 +147,8 @@ resource "helm_release" "datadog_agent" {
     aws_eks_cluster.proc_eks,
     aws_eks_node_group.prod,
     kubernetes_config_map.aws_auth,
-    kubernetes_secret.datadog_api_key
+    kubernetes_secret.datadog_api_key,
+    helm_release.aws_load_balancer_controller # CRITICAL: AWS Load Balancer Controller must be ready before Datadog creates services
   ]
 }
 

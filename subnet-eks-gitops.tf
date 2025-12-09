@@ -14,9 +14,10 @@ locals {
     var.az_secondary
   ]
 
-  # Get the actual GitOps cluster name from variables
+  # Get the actual GitOps cluster name - constructed from name_prefix and environment
+  # This matches the cluster name format used in the EKS module: ${name_prefix}-${environment}
   # This is used in subnet tags for AWS Load Balancer Controller
-  gitops_cluster_name = var.gitops_cluster_name
+  gitops_cluster_name = "${var.gitops_name_prefix}-${var.gitops_environment}"
 }
 
 resource "aws_subnet" "private_eks_gitops" {

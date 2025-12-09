@@ -163,6 +163,12 @@ variable "endpoint_subnet_ids" {
   type        = list(string)
 }
 
+variable "public_subnet_ids" {
+  description = "List of public subnet IDs for internet-facing LoadBalancers"
+  type        = list(string)
+  default     = []
+}
+
 # Cross-cluster communication variables
 variable "target_cluster_name" {
   description = "Name of the target cluster that this GitOps cluster will manage"

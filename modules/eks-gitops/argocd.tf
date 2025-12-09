@@ -62,7 +62,12 @@ locals {
         targetPort: 8080
         annotations:
           service.beta.kubernetes.io/aws-load-balancer-type: alb
-          service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+          service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+          # For internet-facing ALB, use public subnets (passed from root module)
+          service.beta.kubernetes.io/aws-load-balancer-subnets: ${join(",", var.public_subnet_ids)}
+          # Force ALB (not NLB) by specifying backend protocol
+          service.beta.kubernetes.io/aws-load-balancer-backend-protocol: HTTP
+          service.beta.kubernetes.io/aws-load-balancer-target-type: ip
       extraArgs:
         - --insecure
       serviceAccount:
@@ -120,5 +125,55 @@ resource "helm_release" "argocd" {
     aws_eks_node_group.gitops_prod,
     kubernetes_config_map.aws_auth,
     helm_release.aws_load_balancer_controller # CRITICAL: AWS Load Balancer Controller must be ready before ArgoCD creates LoadBalancer service
+  ]
+}
+
+# Create ArgoCD cluster secret for production cluster
+# This allows ArgoCD to deploy applications to the production EKS cluster
+# ArgoCD will use the IAM role attached to argocd-application-controller service account
+# to authenticate with the production cluster via AWS IAM
+resource "kubernetes_secret" "argocd_prod_cluster" {
+  count = var.enable_argocd && var.target_cluster_name != "" && var.target_cluster_endpoint != "" ? 1 : 0
+
+  provider = kubernetes.gitops
+
+  metadata {
+    name      = "${replace(var.target_cluster_name, "-", "")}-cluster"
+    namespace = "argocd"
+    labels = {
+      "argocd.argoproj.io/secret-type" = "cluster"
+    }
+  }
+
+  type = "Opaque"
+
+  data = {
+    # Cluster name (friendly name shown in ArgoCD UI)
+    name = base64encode(var.target_cluster_name)
+
+    # Production cluster endpoint
+    server = base64encode(var.target_cluster_endpoint)
+
+    # Cluster configuration - ArgoCD v2+ format
+    # ArgoCD will use AWS IAM authentication via the service account IAM role
+    config = base64encode(jsonencode({
+      # AWS IAM authentication - ArgoCD will use the IAM role from the service account
+      # The role is attached to argocd-application-controller service account
+      awsAuthConfig = {
+        clusterName = var.target_cluster_name
+      }
+      # TLS configuration
+      tlsClientConfig = {
+        # CA certificate for the production cluster (base64 encoded)
+        caData = var.target_cluster_ca_data
+        # Insecure skip TLS verify (set to false for production)
+        insecure = false
+      }
+    }))
+  }
+
+  depends_on = [
+    helm_release.argocd,
+    aws_iam_role.argocd_cross_cluster_access
   ]
 }

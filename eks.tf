@@ -62,9 +62,10 @@ module "eks" {
 
   # ArgoCD GitOps access
   # Pass the actual cluster name that matches the GitOps module's var.cluster_name
+  # The GitOps module constructs cluster name as: ${name_prefix}-${environment}
   # This is used to construct the IAM role name: ${cluster_name}-argocd-cross-cluster-access
   enable_argocd_access = true
-  gitops_cluster_name  = var.gitops_cluster_name
+  gitops_cluster_name  = "${var.gitops_name_prefix}-${var.gitops_environment}"
 
   # Enable optional components to match existing infrastructure
   enable_aws_auth_configmap = true

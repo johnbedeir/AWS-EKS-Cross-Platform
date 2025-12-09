@@ -6,9 +6,16 @@ locals {
         STORAGE: local
     service:
       type: LoadBalancer
+      name: chartmuseum
+      port: 8080
       annotations:
         service.beta.kubernetes.io/aws-load-balancer-type: alb
-        service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+        service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+        # For internet-facing ALB, use public subnets
+        service.beta.kubernetes.io/aws-load-balancer-subnets: ${join(",", var.public_subnet_ids)}
+        # Force ALB (not NLB) by specifying backend protocol
+        service.beta.kubernetes.io/aws-load-balancer-backend-protocol: HTTP
+        service.beta.kubernetes.io/aws-load-balancer-target-type: ip
     persistence:
       enabled: true
       accessMode: ReadWriteOnce

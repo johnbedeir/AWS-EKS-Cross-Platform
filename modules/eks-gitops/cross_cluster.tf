@@ -5,10 +5,12 @@
 ####################################################################################################
 
 # IAM Role for ArgoCD to manage external clusters
+# Create the role if ArgoCD is enabled, even if target_cluster_name is not set yet
+# This allows the prod module to reference it without circular dependency
 resource "aws_iam_role" "argocd_cross_cluster_access" {
-  count = var.enable_argocd && var.target_cluster_name != "" ? 1 : 0
+  count = var.enable_argocd ? 1 : 0
 
-  name = "${var.cluster_name}-argocd-cross-cluster-access"
+  name = "${local.cluster_name}-argocd-cross-cluster-access"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -29,44 +31,49 @@ resource "aws_iam_role" "argocd_cross_cluster_access" {
   })
 
   tags = {
-    Name        = "${var.cluster_name}-argocd-cross-cluster-access"
+    Name        = "${local.cluster_name}-argocd-cross-cluster-access"
     Environment = var.environment
     Budget      = var.proc_budget
   }
 }
 
 # IAM Policy for ArgoCD cross-cluster access
+# Create policy even if target_cluster_name is empty - it will be updated later
 resource "aws_iam_role_policy" "argocd_cross_cluster_access" {
-  count = var.enable_argocd && var.target_cluster_name != "" ? 1 : 0
+  count = var.enable_argocd ? 1 : 0
 
-  name = "${var.cluster_name}-argocd-cross-cluster-access"
+  name = "${local.cluster_name}-argocd-cross-cluster-access"
   role = aws_iam_role.argocd_cross_cluster_access[0].id
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "eks:*",
-          "sts:AssumeRole",
-          "sts:AssumeRoleWithWebIdentity",
-          "iam:GetRole",
-          "iam:ListRoles",
-          "iam:PassRole"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "sts:AssumeRole"
-        ]
-        Resource = [
-          "arn:aws:iam::${var.aws_account_id}:role/${var.target_cluster_name}-argocd-gitops-access"
-        ]
-      }
-    ]
+    Statement = concat(
+      [
+        {
+          Effect = "Allow"
+          Action = [
+            "eks:*",
+            "sts:AssumeRole",
+            "sts:AssumeRoleWithWebIdentity",
+            "iam:GetRole",
+            "iam:ListRoles",
+            "iam:PassRole"
+          ]
+          Resource = "*"
+        }
+      ],
+      var.target_cluster_name != "" ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "sts:AssumeRole"
+          ]
+          Resource = [
+            "arn:aws:iam::${var.aws_account_id}:role/${var.target_cluster_name}-argocd-gitops-access"
+          ]
+        }
+      ] : []
+    )
   })
 }
 

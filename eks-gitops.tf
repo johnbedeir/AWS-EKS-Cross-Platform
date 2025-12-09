@@ -37,6 +37,12 @@ module "eks_gitops" {
     aws_subnet.private_eks_gitops[1].id
   ]
 
+  # Public subnets for internet-facing LoadBalancers (ArgoCD, Chartmuseum)
+  public_subnet_ids = [
+    aws_subnet.public[0].id,
+    aws_subnet.public[1].id
+  ]
+
   # CRITICAL: Route table associations must exist before node groups are created
   # Since modules with local providers can't use depends_on, we reference the null_resource
   # which ensures associations are created first. The module will implicitly wait for it.
