@@ -49,7 +49,7 @@ name_prefix  = "eks-prod"        # Prefix for EKS production cluster
 environment  = "production"       # Environment name
 cluster_name = "eks-prod-cluster" # Full cluster name
 
-eks_version = "1.28"  # Kubernetes version (e.g., 1.28, 1.29)
+eks_version = "1.32"  # Kubernetes version (e.g., 1.32, 1.33)
 
 # OIDC Configuration
 # TODO: Get these values after creating the cluster, or use placeholder values
@@ -89,7 +89,7 @@ gitops_name_prefix  = "eks-gitops"        # Prefix for GitOps cluster
 gitops_environment  = "production"        # Environment name
 gitops_cluster_name = "eks-gitops-cluster" # Full GitOps cluster name
 
-gitops_eks_version = "1.28"  # Kubernetes version for GitOps cluster
+gitops_eks_version = "1.32"  # Kubernetes version for GitOps cluster
 
 # GitOps Node Group Configuration
 # Sized for ArgoCD + Chartmuseum + supporting services (Metrics Server, Autoscaler, Datadog, Load Balancer Controller)
