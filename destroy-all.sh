@@ -264,10 +264,10 @@ else
 fi
 
 # Check for remaining VPCs
-REMAINING_VPCS=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=clerk-vpc-*" --region "$AWS_REGION" --query 'Vpcs[*].VpcId' --output text 2>/dev/null | wc -w)
+REMAINING_VPCS=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=vpc-*" --region "$AWS_REGION" --query 'Vpcs[*].VpcId' --output text 2>/dev/null | wc -w)
 if [ "$REMAINING_VPCS" != "0" ]; then
     print_warning "Found remaining VPC(s):"
-    aws ec2 describe-vpcs --filters "Name=tag:Name,Values=clerk-vpc-*" --region "$AWS_REGION" --query 'Vpcs[*].[VpcId,Tags[?Key==`Name`].Value|[0]]' --output table 2>/dev/null
+    aws ec2 describe-vpcs --filters "Name=tag:Name,Values=vpc-*" --region "$AWS_REGION" --query 'Vpcs[*].[VpcId,Tags[?Key==`Name`].Value|[0]]' --output table 2>/dev/null
     echo ""
     print_warning "You may need to manually delete these VPCs:"
     print_warning "  aws ec2 delete-vpc --vpc-id <vpc-id> --region $AWS_REGION"

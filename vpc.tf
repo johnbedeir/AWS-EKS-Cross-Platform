@@ -6,7 +6,7 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
   enable_dns_support   = true
   tags = {
-    Name   = "clerk-vpc-${var.name_region}"
+    Name   = "vpc-${var.name_region}"
     Budget = var.networking_budget
   }
 }
@@ -50,7 +50,7 @@ resource "aws_default_network_acl" "default_acl" {
   )
 
   tags = {
-    Name   = "clerk-vpc-default-acl-${var.name_region}"
+    Name   = "vpc-default-acl-${var.name_region}"
     Budget = var.networking_budget
   }
 
